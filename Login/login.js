@@ -2,15 +2,25 @@
 phantom.outputEncoding="GBK";
 
 var casper = require('casper').create({
-    clientScripts: ["./jquery.js"],
+    clientScripts: ["./jquery.js","./authcode.js"],
     verbose: false,
     logLevel: 'debug',
-     //页面访问设置
-     pageSettings: {
-        //是否加载图片
-        'loadImages':  true,
-        //用户代理
-        'userAgent':'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36'
+    pageSettings: {
+        loadImages: true, //加载图片
+        loadPlugins: true, //插件
+        XSSAuditingEnabled: false,
+        localToRemoteUrlAccessEnabled: false,
+        userAgent: 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:55.0) Gecko/20100101 Firefox/55.0' //伪造头
+    },
+    onError: function (casper, msg, backtrace) {
+        this.echo("onError msg:", msg);
+        backtrace.forEach(function (i, index) {
+            this.echo("onError backtrace:", msg);
+        });
+    },
+    onLoadError: function (casper, requestUrl, sta) {
+        casper.echo("onLoadError requestUrl: " + requestUrl);
+        casper.echo("onLoadError status :" + sta);
     },
      // 浏览器窗口大小
      viewportSize: {
@@ -28,11 +38,19 @@ var casper = require('casper').create({
  var data = {
     userName:args2[0],
     password:args2[1]
-}
+};
  
  casper.start('https://account.chsi.com.cn/passport/login?service=https%3A%2F%2Fmy.chsi.com.cn%2Farchive%2Fj_spring_cas_security_check', function() {
     this.waitForSelector('form[id="fm1"]');
     this.echo('打开 '+this.getTitle() + "完毕");
+
+    //检测是否存在验证码
+     if(!casper.exists('div.errors')){
+         this.echo('Already have verification code!!! execute fetch code image ');
+         casper.download('https://account.chsi.com.cn/passport/captcha.image?id=7561.789413148365', './image/code.png');
+         this.evaluate(test);
+         casper.exit();
+     }
  });
  
 //输入账号密码
@@ -62,16 +80,16 @@ casper.then(function(){
         var flag = this.evaluate(function(){
             var pwdIsError = $('div#status').text();
             console.log(pwdIsError);
-            return pwdIsError != '';
+            return pwdIsError !== '';
         });
 
         if(flag){
             casper.exit();
         }
-    })
+    });
 
     this.waitForSelector('a.login-btn');
-})
+});
 
 
 
